@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL") // Simpan URL database di .env
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  username  String   @unique
+  email     String   @unique
+  password  String
+  phone     String?
+  role      Role     @default(USER)
+  profile   String? // URL foto profil
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders   Order[]
+  payments Payment[]
+  carts    Cart[]
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+}
+
+model Product {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  description  String?
+  price        Decimal  @db.Decimal(10, 2) // Gunakan Decimal untuk harga
+  stock        Int      @default(0)
+  alcoholLevel Decimal  @db.Decimal(10, 2) // Contoh: 40.00%
+  volume       Int
+  imageUrl     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  category   Category    @relation(fields: [categoryId], references: [id])
+  categoryId String
+  orderItems OrderItem[]
+  CartItem   CartItem[]
+}
+
+model Order {
+  id         String      @id @default(uuid())
+  user       User        @relation(fields: [userId], references: [id])
+  userId     String
+  totalPrice Decimal     @db.Decimal(10, 2)
+  status     OrderStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  orderItems OrderItem[]
+  payments   Payment?
+  shipment   Shipment?
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  price     Decimal  @db.Decimal(10, 2)
+  subtotal  Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id          String        @id @default(uuid())
+  order       Order         @relation(fields: [orderId], references: [id])
+  orderId     String        @unique
+  user        User          @relation(fields: [userId], references: [id])
+  userId      String
+  amount      Decimal       @db.Decimal(10, 2)
+  method      PaymentMethod
+  status      PaymentStatus @default(PENDING)
+  paymentDate DateTime?     @default(now())
+}
+
+model Shipment {
+  id                String         @id @default(uuid())
+  order             Order          @relation(fields: [orderId], references: [id])
+  orderId           String         @unique
+  trackingNumber    String         @unique
+  courier           String
+  estimatedDelivery DateTime
+  status            ShipmentStatus @default(PENDING)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  user      User       @relation(fields: [userId], references: [id])
+  userId    String     @unique
+  cartItems CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cart      Cart     @relation(fields: [cartId], references: [id])
+  cartId    String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  price     Decimal  @db.Decimal(10, 2)
+  subtotal  Decimal  @db.Decimal(10, 2)
+  createdAt DateTime   @default(now())
+  @@unique([cartId, productId])  // Menjadikan kombinasi cartId & productId sebagai unique constraint
+}
+
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  COMPLETED
+  CANCELED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  BANK_TRANSFER
+  E_WALLET
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum ShipmentStatus {
+  PENDING
+  SHIPPED
+  DELIVERED
+}
